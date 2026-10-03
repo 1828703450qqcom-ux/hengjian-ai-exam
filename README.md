@@ -1,110 +1,91 @@
-# 衡鉴智考 · 高校考试全流程与能力测评平台
+<div align="center">
+  <img src="docs/assets/overview.png" alt="衡鉴智考：考试指挥中心插图" width="100%" />
+  <h1>衡鉴智考 · 高校考试全流程与能力测评平台</h1>
+  <p>从题库与组卷，到考试、监考、评阅和学习反馈的一体化演示平台。</p>
+  <p>
+    <img src="https://img.shields.io/badge/FastAPI-Backend-009688?logo=fastapi&amp;logoColor=white" alt="FastAPI" />
+    <img src="https://img.shields.io/badge/React-18-149ECA?logo=react&amp;logoColor=white" alt="React 18" />
+    <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&amp;logoColor=white" alt="PostgreSQL 16" />
+  </p>
+  <p>
+    <a href="#平台能力">平台能力</a> ·
+    <a href="#本地体验">本地体验</a> ·
+    <a href="docs/部署说明.md">部署指南</a> ·
+    <a href="docs/架构说明.md">架构说明</a>
+  </p>
+</div>
 
-![衡鉴智考：考试指挥中心](docs/assets/overview.png)
+---
 
-[完整部署指南](docs/部署说明.md) · [架构说明](docs/架构说明.md) · [指标对齐](docs/指标对齐.md)
+衡鉴智考面向高校考试场景，把题库、线上考试、监考、阅卷和学情分析串成可追踪的工作流。项目独立开发，产品方向参考高校智能考试平台；与科大讯飞不存在官方隶属、授权或合作关系。
 
-**衡鉴智考**是一套面向高校考试场景的管理与演示平台，覆盖题库建设、智能组卷、线上考试、监考、AI 辅助评阅、扫描阅卷与学情分析。它希望把分散的考试环节放进一条清晰、可追踪的工作流，并在成绩之外提供课程目标和学生能力分析视图。
+> [!IMPORTANT]
+> 仓库提供可运行的前后端和演示数据。部分指挥大屏、监考事件、趋势图及资源指标为演示内容，不代表已接入真实生产数据；AI 评阅和监考结论需要人工复核，不能将示例指标视为准确率保证。
 
-> 从一道试题开始，连接一场考试、一次评阅与一份可行动的学习反馈。
+## 平台能力
 
-项目代号：`hengjian-ai-exam`。本项目独立开发，产品方向参考高校智能考试与监考平台；与科大讯飞不存在官方隶属、授权或合作关系。
-
-## 平台能做什么
-
-| 环节 | 能力 |
+| 流程 | 功能页面 |
 |---|---|
-| 建题与组卷 | 分层题库、标签管理、试题录入、智能出题与组卷、试卷审核 |
-| 考试与监考 | 考生线上作答、考场态势、摄像头监看、异常提示与考试记录 |
-| 阅卷与归档 | AI 辅助主观题评阅、教师复核、答题卡扫描阅卷、印刷和归档管理 |
-| 教学分析 | 成绩统计、知识图谱、课程目标达成度、学生能力画像与学习建议 |
-| 平台管理 | 组织与角色管理、全局工作台、资源监控、数据导入及演示流程 |
+| 建题与组卷 | 分层题库、试题录入、标签管理、智能组卷、试卷审核 |
+| 考试与监考 | 考生答题、考场态势、设备监看、异常提示、事件记录 |
+| 阅卷与归档 | 客观题处理、主观题辅助评阅、教师复核、扫描阅卷、印刷管理 |
+| 教学分析 | 成绩统计、知识图谱、课程目标达成度、学生能力画像 |
+| 平台管理 | 组织角色、管理工作台、资源监控与数据导入 |
 
-## 项目状态与数据说明
+## 系统架构
 
-当前仓库提供可运行的前后端项目和演示数据。部分大屏指标、监考事件、趋势图及资源使用率用于界面演示，不代表真实生产环境的实时测量结果。人脸检测、语音分析和 AI 评阅的实际效果取决于设备、模型、数据质量及部署环境；上线前应完成真实数据源接入、性能与安全测试，并由教师复核重要评阅结论。请勿将界面示例或配置中的目标指标解读为已验证的准确率保证。
+```mermaid
+flowchart LR
+    U[考生 / 教师 / 管理员] --> UI[React 前端]
+    UI --> API[FastAPI 服务]
+    API --> DB[(PostgreSQL / 本地 SQLite)]
+    API --> F[上传文件]
+    UI --> C[浏览器摄像头与音频权限]
+```
 
-## 技术栈
+本地开发使用 SQLite；生产 Compose 使用 PostgreSQL 16。前端通过 `/api` 访问后端，线上部署建议由宿主机 Nginx 提供 HTTPS。完整拓扑、账号初始化和备份命令见[部署指南](docs/部署说明.md)。
 
-- **后端**：Python 3.13 · FastAPI · SQLAlchemy · SQLite（可切换 PostgreSQL 应对高并发）· JWT 认证
-- **前端**：Vite 5 · React 18 · react-router-dom 6 · axios · ECharts 5
-- **AI 视觉**：face-api.js（人脸检测/活体/多人/离席，模型本地化）+ Web Audio（语音音量异常）
+## 本地体验
 
-## 核心功能
-
-1. **考试全流程**：智能题库、多目标组卷、线上考试、扫描阅卷
-2. **多模态监考**：人脸比对、行为识别、语音异常、活体核验、防切屏；多源融合判定 + 哈希链证据链
-3. **AI 智能评阅**：客观题精确比对、主观题（关键词+TF-IDF+结构）、英文作文、翻译、思政主观题、口语测评
-4. **知识图谱能力画像**：知识点→能力→课程目标三级图谱，50+ 维能力画像，课程目标达成度，个性化建议
-5. **管理大屏**：考试指挥中心、扫描阅卷可视化、弹性中台 KPI 监控
-6. **弹性中台**：标准 REST 契约、模块化接入、水平扩展设计
-
-## 快速启动
-
-完整部署（Docker Compose、HTTPS、备份与更新）请看[部署指南](docs/部署说明.md)。
-
-### 后端（端口 8000）
+Windows PowerShell 中先启动后端：
 
 ```powershell
 cd backend
-python -m venv .venv                 # 首次
-.venv\Scripts\python.exe -m pip install -r requirements.txt   # 首次
-.venv\Scripts\python.exe seed.py     # 初始化演示数据（幂等，可重复执行）
-.venv\Scripts\python.exe run.py      # 启动服务
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe seed.py
+.\.venv\Scripts\python.exe run.py
 ```
 
-### 前端（端口 5173，已配置 /api 代理到 8000）
+再开一个终端启动前端：
 
 ```powershell
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
-浏览器打开 http://localhost:5173
+访问 **http://localhost:5173**。`seed.py` 仅用于本地或隔离的演示环境；公网生产部署请遵循[部署指南](docs/部署说明.md)创建独立管理员，不要初始化固定演示账号。
 
-## 演示账号
+<details>
+<summary>查看本地演示账号</summary>
 
 | 角色 | 账号 | 密码 |
 |---|---|---|
-| 管理员 | admin | admin123 |
-| 教师 | teacher | teacher123 |
-| 监考员 | proctor | proctor123 |
-| 考生 | stu01 ~ stu12 | 123456 |
+| 管理员 | `admin` | `admin123` |
+| 教师 | `teacher` | `teacher123` |
+| 监考员 | `proctor` | `proctor123` |
+| 考生 | `stu01`～`stu12` | `123456` |
 
-## 目录结构
+</details>
 
-```
-exam-system/
-├── backend/
-│   ├── app/
-│   │   ├── models.py          # 数据模型（用户/题库/试卷/考试/监考/画像/扫描阅卷）
-│   │   ├── config.py          # 功能目标与阈值配置
-│   │   ├── services/
-│   │   │   ├── grading_service.py    # AI 评阅 + 教师一致性 + 口语测评
-│   │   │   ├── proctor_service.py    # 多模态融合监考 + 哈希链证据链 + KPI 仿真
-│   │   │   ├── knowledge_service.py  # 50+ 维能力画像 + 匹配度 + 建议
-│   │   │   ├── paper_service.py      # 多目标组卷
-│   │   │   └── assessment_service.py # 自动评阅流水线
-│   │   └── routers/           # auth/questions/papers/exams/grading/proctor/capability/dashboard/system/scan
-│   ├── seed.py                # 幂等种子数据
-│   ├── run.py                 # 服务入口
-│   └── exam.db                # 本地演示数据库（不提交到 Git）
-└── frontend/
-    ├── src/
-    │   ├── components/        # Layout/EChart/RadarChart/KnowledgeGraph/ProctorEngine
-    │   └── pages/             # Login/StudentHome/ExamRoom/ExamResult/CapabilityPortrait
-    │                          # TeacherHome/QuestionBank/PaperAssembly/GradingQueue/ScanGrading
-    │                          # CommandCenter/SystemMonitor
-    └── public/models/         # face-api.js 本地模型权重
-```
+## 文档与部署
 
-## 文档索引
+| 文档 | 阅读内容 |
+|---|---|
+| [部署指南](docs/部署说明.md) | Docker Compose、HTTPS、首个管理员、备份、更新与验收 |
+| [架构说明](docs/架构说明.md) | 模块和数据流 |
+| [硬指标对齐](docs/指标对齐.md) | 演示指标与实现范围 |
 
-- [架构说明](docs/架构说明.md)
-- [硬指标对齐](docs/指标对齐.md)
-- [部署指南](docs/部署说明.md)
+生产环境需要真实数据源接入、权限与隐私评估、性能与安全测试，并由教师复核重要评阅结论。学校 SSO、教务同步和第三方题库凭据需按实际供应方另行配置。仓库目前没有独立的开源许可证文件；公开可见不等于允许复制、分发或商用。
 
-> 演示账号只用于本地或隔离的演示环境。生产部署请按部署指南创建独立管理员；不要运行演示数据初始化脚本。
-
-> 本仓库公开可见，但目前未附开源许可证；在明确添加许可证前，代码默认保留原作者权利，不代表允许他人复制、分发或商用。
