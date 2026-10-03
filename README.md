@@ -65,7 +65,7 @@ npm ci
 npm run dev
 ```
 
-访问 **http://localhost:5173**。`seed.py` 仅用于本地或隔离的演示环境；公网生产部署请遵循[部署指南](docs/部署说明.md)创建独立管理员，不要初始化固定演示账号。
+访问 [本地演示页面](http://localhost:5173)。`seed.py` 仅用于本地或隔离的演示环境；公网生产部署请遵循[部署指南](docs/部署说明.md)创建独立管理员，不要初始化固定演示账号。
 
 <details>
 <summary>查看本地演示账号</summary>
