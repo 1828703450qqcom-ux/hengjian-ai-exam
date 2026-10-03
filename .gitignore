@@ -1,0 +1,51 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Runtime data
+backend/exam.db
+backend/exam.db-*
+backend/*.sqlite
+backend/*.sqlite3
+backend/uploads/**
+!backend/uploads/.gitkeep
+
+# Frontend dependencies and builds
+frontend/node_modules/
+frontend/dist/
+frontend/build.log
+
+# Local tooling and generated material
+.idea/
+.vscode/
+screenshots/
+render-check/
+ppt_work/
+ppt_work2/
+*.docx
+*.pptx
+*.pdf
+*.tmp
+*.log
+
+# One-off scripts and generated thesis material in the original workspace
+/*.py
+/*.txt
+/*.png
+/new_update_file
+/第五章功能实现清单.md
+backend/*.py
+!backend/run.py
+!backend/seed.py
+!backend/upgrade_feature_pack.py
+!backend/create_admin.py
