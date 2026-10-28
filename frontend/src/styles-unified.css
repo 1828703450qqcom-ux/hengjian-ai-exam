@@ -1,0 +1,175 @@
+/* 跨模块视觉基线：轻量工作页与深色指挥大屏使用同一组蓝色层级。 */
+.layout:not(:has(.cc-page)) .sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  min-height: 100vh;
+  background: linear-gradient(178deg, #061a40 0%, #0a326d 58%, #0c4288 100%) !important;
+  border-right: 1px solid #2574bf4d !important;
+  box-shadow: 5px 0 26px #102d5e2e !important;
+}
+.layout:not(:has(.cc-page)) .sidebar .menu {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #5b8fd2 transparent;
+}
+.layout:not(:has(.cc-page)) .sidebar .brand {
+  min-height: 72px;
+}
+.layout:not(:has(.cc-page)) .sidebar .menu a {
+  transition: background .18s ease, box-shadow .18s ease, color .18s ease !important;
+}
+.layout:not(:has(.cc-page)) .sidebar .menu a.active {
+  border: 1px solid #69bdff90 !important;
+  box-shadow: inset 0 1px 0 #ffffff4d, 0 6px 18px #137bef4f !important;
+}
+.layout:not(:has(.cc-page)) .topbar {
+  height: 70px !important;
+  background: #ffffffed !important;
+  border-bottom: 1px solid #dce7f6 !important;
+  box-shadow: 0 4px 18px #2147740a !important;
+}
+.layout:not(:has(.cc-page)) .page {
+  max-width: 1580px !important;
+  padding: 25px 28px 48px !important;
+}
+.layout:not(:has(.cc-page)) .page-header {
+  padding: 3px 0 8px;
+  margin-bottom: 21px;
+}
+.layout:not(:has(.cc-page)) .page-header .ph-title {
+  font-size: 23px !important;
+  letter-spacing: .01em;
+}
+.layout:not(:has(.cc-page)) .page-header .ph-desc {
+  font-size: 13px !important;
+  line-height: 1.7;
+}
+.layout:not(:has(.cc-page)) .card,
+.layout:not(:has(.cc-page)) .stat {
+  border: 1px solid #dae5f3 !important;
+  box-shadow: 0 8px 24px #224d8610 !important;
+}
+.layout:not(:has(.cc-page)) .card-title {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 700;
+  color: #18345f;
+}
+.layout:not(:has(.cc-page)) .btn,
+.layout:not(:has(.cc-page)) button {
+  transition: background .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+.layout:not(:has(.cc-page)) :is(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid #348cf1;
+  outline-offset: 2px;
+}
+.layout:not(:has(.cc-page)) .table-wrap {
+  box-shadow: 0 3px 12px #1b4e8c0b;
+}
+.layout:not(:has(.cc-page)) thead th {
+  font-size: 12px;
+  letter-spacing: .02em;
+}
+.layout:not(:has(.cc-page)) tbody td {
+  font-size: 13px;
+  line-height: 1.55;
+}
+.layout:not(:has(.cc-page)) .filter-bar {
+  border-radius: 11px !important;
+}
+.portal-home .portal-banner {
+  isolation: isolate;
+  min-height: 142px;
+  background: linear-gradient(112deg, #183c9e 0%, #276cdd 55%, #57a4fc 100%) !important;
+  border: 1px solid #ffffff45;
+  box-shadow: 0 10px 28px #1c5ec62e !important;
+}
+.portal-home.student .portal-banner {
+  background: linear-gradient(112deg, #5722ad 0%, #7841df 55%, #a58bfa 100%) !important;
+  box-shadow: 0 10px 28px #6f39bd24 !important;
+}
+.portal-home .portal-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 78% 44%, #ffffff30 0 1px, transparent 2px),
+    linear-gradient(90deg, #ffffff0e 1px, transparent 1px),
+    linear-gradient(#ffffff0e 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(90deg, transparent 30%, #000);
+}
+.portal-home .portal-banner h2 { font-size: 27px !important; letter-spacing: .01em; }
+.portal-home .portal-banner p { font-size: 13px !important; }
+.portal-home .portal-banner button { position: relative; z-index: 2; }
+.portal-art {
+  position: absolute;
+  right: 260px;
+  top: -20px;
+  width: 188px;
+  height: 188px;
+  z-index: 0;
+  opacity: .8;
+  filter: drop-shadow(0 0 14px #d1ecff70);
+  pointer-events: none;
+}
+.print-management {
+  padding: 8px 0 32px !important;
+  min-height: unset !important;
+}
+.print-management .pm-card,
+.print-management .pm-stat-card {
+  border: 1px solid #dae5f3 !important;
+  box-shadow: 0 8px 24px #224d8610 !important;
+}
+.print-management .pm-tab {
+  min-height: 40px;
+  border: 1px solid transparent;
+}
+.print-management .pm-tab:not(.active):hover {
+  border-color: #bed9fa;
+  background: #edf5ff !important;
+}
+.print-management .pm-card:has(> h3):not(:has(table)) {
+  min-height: 160px;
+}
+.print-management .pm-stat-card {
+  position: relative;
+  overflow: hidden;
+}
+.print-management .pm-stat-card::after {
+  content: '';
+  position: absolute;
+  width: 84px;
+  height: 84px;
+  right: -28px;
+  top: -28px;
+  border: 14px solid #3788ef0d;
+  border-radius: 50%;
+}
+.print-management .pm-empty {
+  min-height: 104px;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 7px;
+  color: #8195b1;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+@media (max-width: 1000px) {
+  .layout:not(:has(.cc-page)) .page { padding: 18px 14px 36px !important; }
+  .portal-art { right: 130px; opacity: .38; }
+}
+@media (max-width: 720px) {
+  .layout:not(:has(.cc-page)) .page { padding: 14px 11px 32px !important; }
+  .portal-home .portal-banner { padding: 20px !important; }
+  .portal-home .portal-banner h2 { font-size: 22px !important; }
+  .portal-art { display: none; }
+}

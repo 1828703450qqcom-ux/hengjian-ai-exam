@@ -27,7 +27,7 @@ const ArchiveCenter = () => {
       url += params.toString()
 
       const res = await api.get(url)
-      setExams(res.data?.exams || res.data?.items || [])
+      setExams(res.exams || res.items || [])
     } catch (e) {
       console.error('获取归档列表失败', e)
     }
@@ -41,7 +41,7 @@ const ArchiveCenter = () => {
   const fetchMaterials = async (examId) => {
     try {
       const res = await api.get(`/exams-enhanced/archive/${examId}/materials`)
-      setMaterials(res.data)
+      setMaterials(res)
       setSelectedExam(examId)
       setActiveTab('materials')
     } catch (e) {
@@ -52,7 +52,7 @@ const ArchiveCenter = () => {
   const fetchProctorLog = async (examId) => {
     try {
       const res = await api.get(`/exams-enhanced/archive/${examId}/proctor-log`)
-      setProctorLog(res.data)
+      setProctorLog(res)
       setActiveTab('proctor')
     } catch (e) {
       console.error('获取监考日志失败', e)
@@ -448,7 +448,7 @@ const StudentSearch = () => {
       if (searchType === 'student_no') params.append('student_no', searchValue)
       else params.append('student_name', searchValue)
       const res = await api.get(`/exams-enhanced/archive/student-search?${params.toString()}`)
-      setResults(res.data?.students || [])
+      setResults(res.students || [])
     } catch (e) {
       console.error('学生查询失败', e)
     }

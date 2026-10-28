@@ -5,6 +5,7 @@ import App from './App'
 import './styles.css'
 import './styles-ant-design.css'
 import './styles-polish.css'
+import './styles-unified.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

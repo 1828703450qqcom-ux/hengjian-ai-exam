@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import api from '../api'
 import { PageHeader, StatCard, Tag, Empty, Loading, Progress } from '../components/ui'
 import EChart from '../components/EChart'
+import PortalArt from '../components/PortalArt'
 
 function MiniRing({ value, max = 100, color = '#3b82f6', size = 48 }) {
   const pct = Math.min(100, (value / max) * 100)
@@ -106,9 +107,9 @@ export default function TeacherHome() {
   const dateStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`
 
   return (
-    <div>
+    <div className="portal-home teacher">
       {/* 欢迎横幅 */}
-      <div style={{
+      <div className="portal-banner" style={{
         background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%)',
         borderRadius: 16, padding: '24px 28px', marginBottom: 20,
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -138,6 +139,7 @@ export default function TeacherHome() {
             📝 智能组卷
           </button>
         </div>
+        <PortalArt variant="teacher" />
         {/* 装饰圆 */}
         <div style={{ position: 'absolute', right: -40, top: -40, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }} />
         <div style={{ position: 'absolute', right: 60, bottom: -60, width: 150, height: 150, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />

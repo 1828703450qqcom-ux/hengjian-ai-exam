@@ -26,7 +26,9 @@ const TagManagement = () => {
   const fetchCourses = useCallback(async () => {
     try {
       const res = await api.get('/system/courses')
-      setCourses(res.data?.courses || res.data || [])
+      const items = res.items || res.courses || []
+      setCourses(items)
+      setSelectedCourse(current => current || items[0]?.id || null)
     } catch (e) {
       console.error('获取课程列表失败', e)
     }
@@ -40,8 +42,8 @@ const TagManagement = () => {
         api.get(`/tags/courses/${selectedCourse}/tree?tag_type=${activeType}`),
         api.get(`/tags/courses/${selectedCourse}/types`),
       ])
-      setTagTree(treeRes.data?.tree || [])
-      setTypeStats(statsRes.data?.tag_types || {})
+      setTagTree(treeRes.tree || [])
+      setTypeStats(statsRes.tag_types || {})
     } catch (e) {
       console.error('获取标签数据失败', e)
     }

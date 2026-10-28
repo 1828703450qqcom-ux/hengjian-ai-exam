@@ -14,6 +14,10 @@ const STATUS_MAP = {
   completed: { label: '已完成', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
 };
 
+function PrintEmpty({ text }) {
+  return <div className="pm-empty"><svg width="74" height="74" viewBox="0 0 74 74" fill="none" aria-hidden="true"><circle cx="37" cy="37" r="34" fill="#EDF5FF" /><path d="M23 24h28v30H23z" fill="#fff" stroke="#82B5ED" strokeWidth="2" /><path d="M28 31h18M28 37h18M28 43h12" stroke="#82B5ED" strokeWidth="2" strokeLinecap="round" /><circle cx="51" cy="49" r="11" fill="#D7EBFF" stroke="#59A3EF" strokeWidth="2" /><path d="M47 49h8M51 45v8" stroke="#2782DC" strokeWidth="2" strokeLinecap="round" /></svg><span>{text}</span></div>;
+}
+
 const PrintManagement = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [tasks, setTasks] = useState([]);
@@ -26,6 +30,7 @@ const PrintManagement = () => {
   const [statistics, setStatistics] = useState(null);
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [searchText, setSearchText] = useState('');
 
@@ -50,6 +55,7 @@ const PrintManagement = () => {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setLoadError('');
     try {
       const [tasksRes, factoriesRes, statsRes, dashRes] = await Promise.all([
         api.get('/print/tasks'),
@@ -57,12 +63,13 @@ const PrintManagement = () => {
         api.get('/print/statistics'),
         api.get('/print/dashboard'),
       ]);
-      setTasks(tasksRes.data.tasks || []);
-      setFactories(factoriesRes.data.factories || []);
-      setStatistics(statsRes.data);
-      setDashboard(dashRes.data);
+      setTasks(tasksRes.tasks || []);
+      setFactories(factoriesRes.factories || []);
+      setStatistics(statsRes);
+      setDashboard(dashRes);
     } catch (e) {
       console.error('获取印刷管理数据失败', e);
+      setLoadError(e?.detail || e?.message || '数据加载失败');
     }
     setLoading(false);
   }, []);
@@ -134,7 +141,7 @@ const PrintManagement = () => {
       fetchData();
       if (selectedTask?.id === taskId) {
         const detail = await api.get(`/print/tasks/${taskId}`);
-        setSelectedTask(detail.data);
+        setSelectedTask(detail);
       }
       alert('操作成功');
     } catch (e) {
@@ -149,7 +156,7 @@ const PrintManagement = () => {
       setShowPickupModal(false);
       setPickupForm({ picker_name: '', picker_dept: '', paper_count: 0, answer_sheet_count: 0 });
       const detail = await api.get(`/print/tasks/${selectedTask.id}`);
-      setSelectedTask(detail.data);
+      setSelectedTask(detail);
       fetchData();
     } catch (e) {
       alert('添加领取记录失败: ' + (e.response?.data?.detail || e.message));
@@ -285,6 +292,12 @@ const PrintManagement = () => {
       </div>
 
       {/* 数据大屏 */}
+      {activeTab === 'dashboard' && !dashboard && (
+        <div className="pm-card" role={loadError ? 'alert' : 'status'} style={{ minHeight: 240, display: 'grid', placeContent: 'center', textAlign: 'center', gap: 12 }}>
+          <strong>{loading ? '正在加载印刷管理数据…' : loadError ? '印刷管理数据暂时不可用' : '暂无印刷管理数据'}</strong>
+          {loadError && <><span style={{ color: '#64748b' }}>{loadError}</span><button className="pm-btn" onClick={fetchData}>重新加载</button></>}
+        </div>
+      )}
       {activeTab === 'dashboard' && dashboard && (
         <div>
           {/* 统计卡片 */}
@@ -323,7 +336,8 @@ const PrintManagement = () => {
             <div className="pm-card">
               <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: 600, color: '#1e293b' }}>任务状态分布</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {Object.entries(dashboard.status_counts).map(([status, count]) => {
+                {!Object.keys(dashboard.status_counts || {}).length && <PrintEmpty text="暂无任务，创建印刷任务后将显示状态分布" />}
+                {Object.entries(dashboard.status_counts || {}).map(([status, count]) => {
                   const s = STATUS_MAP[status] || { label: status, color: '#94a3b8' };
                   const total = Object.values(dashboard.status_counts).reduce((a, b) => a + b, 0);
                   const percent = total > 0 ? (count / total * 100).toFixed(1) : 0;
@@ -346,7 +360,8 @@ const PrintManagement = () => {
             <div className="pm-card">
               <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: 600, color: '#1e293b' }}>印厂工作量</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {dashboard.factory_workload.map(f => (
+                {!dashboard.factory_workload?.length && <PrintEmpty text="暂无印厂工作量，添加印厂后将显示排产数据" />}
+                {(dashboard.factory_workload || []).map(f => (
                   <div key={f.factory_id} style={{ padding: '12px', background: 'rgba(59,130,246,0.04)', borderRadius: '10px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 600, color: '#1e293b', fontSize: '14px' }}>{f.factory_name}</span>
@@ -377,7 +392,8 @@ const PrintManagement = () => {
                 </tr>
               </thead>
               <tbody>
-                {dashboard.recent_tasks.map(t => {
+                {!dashboard.recent_tasks?.length && <tr><td colSpan="5"><PrintEmpty text="暂无最近任务" /></td></tr>}
+                {(dashboard.recent_tasks || []).map(t => {
                   const s = STATUS_MAP[t.status] || { label: t.status, color: '#94a3b8' };
                   return (
                     <tr key={t.id} onClick={() => { setSelectedTask(t); setActiveTab('tasks'); }} style={{ cursor: 'pointer' }}>
@@ -444,7 +460,7 @@ const PrintManagement = () => {
                     <tr key={t.id}>
                       <td style={{ fontFamily: 'monospace', color: '#3b82f6', cursor: 'pointer' }} onClick={async () => {
                         const detail = await api.get(`/print/tasks/${t.id}`);
-                        setSelectedTask(detail.data);
+                        setSelectedTask(detail);
                       }}>{t.task_no}</td>
                       <td>{t.title}</td>
                       <td>{t.factory_name || '-'}</td>
@@ -480,7 +496,7 @@ const PrintManagement = () => {
                             <>
                               <button className="pm-btn pm-btn-primary" style={{ padding: '4px 10px', fontSize: '12px' }} onClick={async () => {
                                 const detail = await api.get(`/print/tasks/${t.id}`);
-                                setSelectedTask(detail.data);
+                                setSelectedTask(detail);
                                 setShowPickupModal(true);
                               }}>添加领取</button>
                               <button className="pm-btn pm-btn-success" style={{ padding: '4px 10px', fontSize: '12px' }} onClick={() => handleTaskAction(t.id, 'complete_picking')}>结束领取</button>

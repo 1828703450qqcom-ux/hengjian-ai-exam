@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import api from '../api'
 import { PageHeader, StatCard, Tag, Empty, Loading, toast } from '../components/ui'
 import EChart from '../components/EChart'
+import PortalArt from '../components/PortalArt'
 
 const STATUS = {
   not_started: ['未开始', 'gray'], in_progress: ['进行中', 'blue'], submitted: ['已交卷', 'orange'],
@@ -140,9 +141,9 @@ export default function StudentHome() {
   const dateStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`
 
   return (
-    <div>
+    <div className="portal-home student">
       {/* 欢迎横幅 */}
-      <div style={{
+      <div className="portal-banner" style={{
         background: 'linear-gradient(135deg, #5b21b6 0%, #7c3aed 30%, #8b5cf6 60%, #a78bfa 100%)',
         borderRadius: 16, padding: '24px 28px', marginBottom: 20,
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -172,6 +173,7 @@ export default function StudentHome() {
             📚 错题本
           </button>
         </div>
+        <PortalArt variant="student" />
         <div style={{ position: 'absolute', right: -40, top: -40, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }} />
         <div style={{ position: 'absolute', right: 60, bottom: -60, width: 150, height: 150, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
       </div>

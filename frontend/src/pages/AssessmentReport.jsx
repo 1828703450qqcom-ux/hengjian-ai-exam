@@ -13,7 +13,7 @@ const AssessmentReport = () => {
   const fetchExams = useCallback(async () => {
     try {
       const res = await api.get('/exams?limit=50')
-      setExams(res.data?.items || res.data?.exams || [])
+      setExams(res.items || res.exams || [])
     } catch (e) {
       console.error('获取考试列表失败', e)
     }
@@ -31,8 +31,8 @@ const AssessmentReport = () => {
         api.get(`/assessment-report/exam/${examId}/overview`),
         api.get(`/assessment-report/exam/${examId}/question-analysis`),
       ])
-      setOverview(overviewRes.data)
-      setQuestionAnalysis(questionRes.data)
+      setOverview(overviewRes)
+      setQuestionAnalysis(questionRes)
     } catch (e) {
       console.error('加载考试数据失败', e)
     }
@@ -48,7 +48,7 @@ const AssessmentReport = () => {
         report_type: 'full',
         include_ai_analysis: true,
       })
-      setReport(res.data)
+      setReport(res)
       setActiveTab('ai_analysis')
     } catch (e) {
       console.error('生成报告失败', e)

@@ -165,7 +165,7 @@ export default function Layout({ user }) {
     '/knowledge-graph': '知识图谱', '/speaking-test': '口语测评', '/learning-loop': '学习闭环',
     '/wrong-book': '错题本', '/exam-analysis': '考试分析', '/teacher-dashboard': '教师工作台',
     '/course-objective': '课程目标达成', '/ai-grading': 'AI评阅', '/info-collection': '信息采集',
-    '/paper-assembly': '智能组卷', '/exam-management': '考试管理', '/data-import': '数据批量导入', '/grading': 'AI 智能评阅', '/scan-grading': '扫描阅卷',
+    '/paper-assembly': '智能组卷', '/exam-management': '考试管理', '/data-import': '数据批量导入', '/grading': 'AI 智能评阅', '/scan-grading': '扫描阅卷', '/print-management': '印刷管理',
     '/command': '考试指挥中心', '/demo-center': '全链路演示中心', '/system': '弹性中台监控', '/proctor-dashboard': '实时监考中心', '/result': '考试成绩' }
   const exact = titleMap[location.pathname]
   const current = exact || (location.pathname.startsWith('/exam-room') ? '在线考试' : '衡鉴智考')
