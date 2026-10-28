@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import './command-center.css'
 import './command-center-v2.css'
 
@@ -68,6 +68,8 @@ export default function CommandCenter() {
   const [now, setNow] = useState(new Date())
   const [trendMode, setTrendMode] = useState('submitted')
   const navigate = useNavigate()
+  const location = useLocation()
+  const showDetails = location.pathname !== '/'
   const user = (() => {
     try { return JSON.parse(localStorage.getItem('user') || 'null') } catch { return null }
   })()
@@ -140,7 +142,7 @@ export default function CommandCenter() {
           </header>
           <div className="exam-list">
             {exams.map((exam, index) => (
-              <div className="exam-row" key={index}>
+              <div className={`exam-row ${exam.anomalies ? 'has-anomaly' : 'compact'}`} key={index}>
                 <div className="exam-head">
                   <b>{exam.name}</b>
                   <span className={`status ${exam.statusColor}`}>{exam.status}</span>
@@ -215,7 +217,7 @@ export default function CommandCenter() {
       </div>
 
       {/* 下半部分网格 */}
-      <div className="cc-grid bottom-grid">
+      {showDetails && <div className="cc-grid bottom-grid">
         {/* 实时预警信息 */}
         <section className="cc-card alerts">
           <header>
@@ -283,7 +285,8 @@ export default function CommandCenter() {
             ))}
           </div>
         </section>
-      </div>
+      </div>}
+      <footer className="cc-footer"><span>数据让考试更公平 &nbsp;·&nbsp; AI 让教育更美好</span><b>SMART EXAMINATION &nbsp; 2026</b></footer>
     </div>
   )
 }
