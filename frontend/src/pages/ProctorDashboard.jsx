@@ -1,5 +1,6 @@
-﻿import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import api from '../api'
+import { toast } from '../components/ui'
 
 export default function ProctorDashboard() {
   const [stats, setStats] = useState(null)
@@ -8,6 +9,9 @@ export default function ProctorDashboard() {
   const [loading, setLoading] = useState(true)
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [lastUpdate, setLastUpdate] = useState(null)
+  const [riskFilter, setRiskFilter] = useState('all')
+  const [evidence, setEvidence] = useState(null)
+  const [actionBusy, setActionBusy] = useState(null)
 
   const fetchData = useCallback(async () => {
     try {
@@ -27,12 +31,24 @@ export default function ProctorDashboard() {
 
   const fetchSessionDetail = async (sid) => {
     try {
-      const res = await api.get(`/proctor/admin/session/${sid}/detail`)
+      const [res, chain] = await Promise.all([api.get(`/proctor/admin/session/${sid}/detail`), api.get(`/proctor/evidence/${sid}`)])
       setSelectedSession(res)
+      setEvidence(chain)
     } catch (e) {
       console.error('获取会话详情失败:', e)
     }
   }
+
+  const takeAction = async (sid, eventId, action) => {
+    setActionBusy(eventId)
+    try {
+      await api.post(`/proctor/evidence/${sid}/action`, { event_id: eventId, action })
+      toast.success('事件处置已记录')
+      await Promise.all([fetchSessionDetail(sid), fetchData()])
+    } catch (e) { toast.error(e.detail || '处置失败') } finally { setActionBusy(null) }
+  }
+
+  const visibleSessions = sessions.filter(s => riskFilter === 'all' || (riskFilter === 'flagged' ? s.is_flagged : s.risk_level === riskFilter))
 
   useEffect(() => {
     fetchData()
@@ -113,16 +129,18 @@ export default function ProctorDashboard() {
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
           <div style={{ padding: '16px 20px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>考生监控列表 ({sessions.length})</h2>
-            <span style={{ fontSize: 12, color: '#6b7280' }}>点击查看详情</span>
+            <select aria-label="监考风险筛选" className="input sm" value={riskFilter} onChange={e => setRiskFilter(e.target.value)}>
+              <option value="all">全部风险</option><option value="flagged">已标记</option><option value="critical">严重</option><option value="high">高风险</option><option value="medium">中风险</option><option value="low">低风险</option>
+            </select>
           </div>
           <div style={{ maxHeight: 600, overflowY: 'auto' }}>
-            {sessions.length === 0 ? (
+            {visibleSessions.length === 0 ? (
               <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>
                 <div style={{ fontSize: 40, marginBottom: 8 }}>📋</div>
-                当前没有进行中的考试
+                当前筛选条件下没有进行中的考试
               </div>
             ) : (
-              sessions.map((s) => (
+              visibleSessions.map((s) => (
                 <div
                   key={s.session_id}
                   onClick={() => fetchSessionDetail(s.session_id)}
@@ -240,10 +258,12 @@ export default function ProctorDashboard() {
                       </div>
                       {e.detail?.desc && <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{e.detail.desc}</div>}
                       <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>{e.time ? new Date(e.time).toLocaleTimeString() : '-'}</div>
+                      {e.detail?.action_taken ? <div style={{ marginTop: 5, fontSize: 11, color: '#15803d' }}>已处置：{e.detail.action_taken} · {e.detail.action_by}</div> : <div style={{ display: 'flex', gap: 5, marginTop: 7 }}><button className="btn sm" disabled={actionBusy === e.id} onClick={() => takeAction(selectedSession.session.id, e.id, 'warn')}>警告</button><button className="btn sm" disabled={actionBusy === e.id} onClick={() => takeAction(selectedSession.session.id, e.id, 'dismiss')}>排除</button><button className="btn sm danger" disabled={actionBusy === e.id} onClick={() => takeAction(selectedSession.session.id, e.id, 'mark_cheating')}>标记作弊</button></div>}
                     </div>
                   ))}
                 </div>
               </div>
+              {evidence && <div style={{ marginTop: 14, padding: 12, borderRadius: 8, background: '#eff6ff', color: '#315886', fontSize: 12, lineHeight: 1.7 }}>证据链：{evidence.total_events} 条持久化事件 · 严重告警 {evidence.severity_stats?.critical || 0} 条 · 高风险告警 {evidence.severity_stats?.high || 0} 条</div>}
             </div>
           </div>
         )}
@@ -258,4 +278,5 @@ export default function ProctorDashboard() {
     </div>
   )
 }
+
 

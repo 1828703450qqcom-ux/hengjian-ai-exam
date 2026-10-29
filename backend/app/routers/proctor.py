@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from ..database import get_db
@@ -299,13 +299,15 @@ def evidence_action(session_id: int, payload: dict, user: User = Depends(get_cur
 
     if not event_id or not action:
         raise HTTPException(400, "缺少event_id或action")
+    if action not in ("warn", "mark_cheating", "ban_exam", "dismiss"):
+        raise HTTPException(400, "不支持的处置动作")
 
     event = db.query(ProctorEvent).get(event_id)
-    if not event:
+    if not event or event.session_id != session_id:
         raise HTTPException(404, "事件不存在")
 
     # 更新事件详情
-    detail = event.detail or {}
+    detail = dict(event.detail or {})
     detail["action_taken"] = action
     detail["action_by"] = user.name or user.username
     detail["action_note"] = note
@@ -325,3 +327,4 @@ def evidence_action(session_id: int, payload: dict, user: User = Depends(get_cur
     _db_commit_with_retry(db)
 
     return {"ok": True, "message": f"已对事件{event_id}采取动作: {action}", "action": action}
+
