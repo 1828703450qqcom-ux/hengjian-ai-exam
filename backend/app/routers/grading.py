@@ -16,11 +16,13 @@ router = APIRouter(prefix="/api/grading", tags=["grading"])
 
 
 @router.post("/session/{sid}/auto")
-def auto_grade(sid: int, user: User = Depends(require_roles("admin", "teacher")), db: Session = Depends(get_db)):
+def auto_grade(sid: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """自动评阅流水线：客观题精确比对 + 主观题 AI 评分 + 能力画像"""
     session = db.query(ExamSession).get(sid)
     if not session:
         raise HTTPException(404, "会话不存在")
+    if user.role == "student" and session.user_id != user.id or user.role not in ("student", "admin", "teacher"):
+        raise HTTPException(403, "无权评阅此会话")
     try:
         result = run_auto_grading(db, session, generate_portrait=True)
     except ValueError as e:
@@ -30,10 +32,12 @@ def auto_grade(sid: int, user: User = Depends(require_roles("admin", "teacher"))
 
 
 @router.get("/session/{sid}/detail")
-def session_detail(sid: int, user: User = Depends(require_roles("admin", "teacher")), db: Session = Depends(get_db)):
+def session_detail(sid: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     session = db.query(ExamSession).get(sid)
     if not session:
         raise HTTPException(404, "会话不存在")
+    if user.role == "student" and session.user_id != user.id or user.role not in ("student", "admin", "teacher"):
+        raise HTTPException(403, "无权查看此会话")
     answers = db.query(StudentAnswer).filter_by(session_id=sid).all()
     items = []
     for sa in answers:
