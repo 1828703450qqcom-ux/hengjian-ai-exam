@@ -6,6 +6,7 @@ import re
 import httpx
 from typing import Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from .open_data_service import SOURCES as OPEN_SOURCES, search_source
 
 
 # 题型关键词映射（用于构造搜索 query）
@@ -39,6 +40,7 @@ DATA_SOURCES = {
     "openstax": {"name": "OpenStax", "site": "site:openstax.org", "desc": "开放教材与标准化练习题", "category": "开放教育", "accent": "#16a34a"},
     "khan": {"name": "Khan Academy", "site": "site:khanacademy.org", "desc": "数学、科学与计算机练习资源", "category": "开放教育", "accent": "#14b8a6"},
 }
+DATA_SOURCES = {**OPEN_SOURCES, **DATA_SOURCES}
 
 
 def _clean_html(text: str) -> str:
@@ -167,6 +169,28 @@ def web_search_questions(
     sources: list = None,
 ) -> dict:
     """联网搜索题目，支持多数据源并行搜索，返回候选列表"""
+    selected = list(dict.fromkeys(sources or ['opentdb', 'gsm8k', 'mbpp']))
+    structured = [key for key in selected if key in OPEN_SOURCES]
+    if structured:
+        questions, stats = [], {}
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            jobs = {executor.submit(search_source, key, keyword, count, qtype): key for key in structured}
+            for future in as_completed(jobs):
+                key = jobs[future]
+                try:
+                    items, status = future.result()
+                    questions.extend(items)
+                    stats[key] = {**status, 'name': OPEN_SOURCES[key]['name']}
+                except Exception as exc:
+                    stats[key] = {'name': OPEN_SOURCES[key]['name'], 'count': 0, 'status': 'error',
+                                  'message': f'上游请求失败：{type(exc).__name__}，请稍后重试'}
+        legacy = [key for key in selected if key in DATA_SOURCES and key not in OPEN_SOURCES]
+        if legacy:
+            other = web_search_questions(keyword, qtype, count, course_name, difficulty, legacy)
+            questions.extend(other.get('questions', []))
+            stats.update(other.get('source_stats', {}))
+        return {'ok': True, 'questions': questions, 'question_count': len(questions), 'source_stats': stats,
+                'sources': selected, 'results': [], 'keyword': keyword}
     if not keyword.strip():
         return {"ok": False, "error": "请输入搜索关键词", "results": [], "questions": []}
 
@@ -202,6 +226,9 @@ def web_search_questions(
         query = f"{src_cfg['site']} {base_query}".strip() if src_cfg["site"] else base_query
         search_tasks.append((src_key, src_cfg, query))
 
+    if not search_tasks:
+        return {'ok': False, 'error': '没有有效的数据源', 'questions': []}
+
     with ThreadPoolExecutor(max_workers=min(len(search_tasks), 5)) as executor:
         futures = {executor.submit(search_one_source, k, c, q): k for k, c, q in search_tasks}
         for future in as_completed(futures, timeout=25):
@@ -229,7 +256,8 @@ def web_search_questions(
             q["difficulty"] = difficulty
             q["source_db"] = r.get("source_db", "")
             q["source"] = f"外部题库-{r.get('source_key', 'general')}"
-            q["quality_score"] = min(98, 72 + (18 if q.get("answer") else 0) + (8 if q.get("analysis") else 0))
+            q['resource_only'] = True
+            q['structured'] = False
             questions.append(q)
 
     return {
@@ -243,3 +271,4 @@ def web_search_questions(
         "results": unique_results[:count],
         "questions": questions,
     }
+

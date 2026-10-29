@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, Fragment } from 'react'
 import api from '../api'
+import './question-sources.css'
 import { PageHeader, Tag, Empty, Loading, toast, confirmDialog, Modal } from '../components/ui'
 
 const TYPES = [
@@ -36,7 +37,8 @@ export default function QuestionBank() {
   const [showSources, setShowSources] = useState(false)
   const [sources, setSources] = useState([])
   const [sourceKeyword, setSourceKeyword] = useState('')
-  const [selectedSources, setSelectedSources] = useState(new Set(['general', 'mooc', 'xuetangx']))
+  const [selectedSources, setSelectedSources] = useState(new Set(['opentdb', 'gsm8k', 'mbpp']))
+  const [sourceStats, setSourceStats] = useState({})
   const [sourceQuestions, setSourceQuestions] = useState([])
   const [sourceSelected, setSourceSelected] = useState(new Set())
   const [sourceSearching, setSourceSearching] = useState(false)
@@ -124,18 +126,20 @@ export default function QuestionBank() {
   }, [])
 
   const searchSources = async () => {
-    if (!sourceKeyword.trim()) { toast.warning('请输入要扩充的知识主题'); return }
+    if (!sourceKeyword.trim() && [...selectedSources].some(k => !['opentdb', 'gsm8k', 'mbpp'].includes(k))) { toast.warning('网页资源检索需要填写关键词'); return }
     if (!selectedSources.size) { toast.warning('请至少选择一个数据源'); return }
-    setSourceSearching(true); setSourceQuestions([])
+    setSourceSearching(true); setSourceQuestions([]); setSourceStats({})
     try {
       const course = courses.find(c => c.id === courseId)
       const d = await api.post('/questions/search-web', {
         keyword: sourceKeyword, qtype, count: 20, course_name: course?.name || '',
         difficulty: difficulty || 3, sources: [...selectedSources],
-      })
+      }, { timeout: 60000 })
       setSourceQuestions(d.questions || [])
-      setSourceSelected(new Set((d.questions || []).map((_, i) => i)))
-      toast.success(`已从 ${Object.keys(d.source_stats || {}).length} 个数据源获取 ${d.question_count || 0} 道候选题`)
+      setSourceStats(d.source_stats || {})
+      setSourceSelected(new Set((d.questions || []).map((q, i) => q.resource_only ? -1 : i).filter(i => i >= 0)))
+      if (d.question_count) toast.success(`已取得 ${d.question_count} 条候选内容，请核对后入库`)
+      else toast.warning('没有取得匹配题目，请查看各数据源状态')
     } catch (e) { toast.error(e.detail || '数据源检索失败') } finally { setSourceSearching(false) }
   }
 
@@ -144,8 +148,8 @@ export default function QuestionBank() {
     if (!selected.length) { toast.warning('请选择需要入库的题目'); return }
     setSourceImporting(true)
     try {
-      await api.post('/questions/search-web/import', { course_id: courseId || courses[0]?.id || 1, questions: selected })
-      toast.success(`成功扩充 ${selected.length} 道题目`); setShowSources(false); load()
+      const result = await api.post('/questions/search-web/import', { course_id: courseId || courses[0]?.id || 1, questions: selected })
+      toast.success(`新增 ${result.created_count} 题，跳过重复或资源条目 ${result.skipped_count || 0} 条`); setShowSources(false); load()
       api.get('/questions/search-web/sources').then((d) => setSources(d.items || []))
     } catch (e) { toast.error(e.detail || '导入失败') } finally { setSourceImporting(false) }
   }
@@ -322,6 +326,7 @@ export default function QuestionBank() {
                                 <div style={{ fontSize: 14, color: '#16a34a', fontWeight: 600, marginBottom: 12 }}>{q.answer || '暂无'}</div>
                                 <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>解析</div>
                                 <div style={{ fontSize: 13, color: '#475569', lineHeight: 1.6 }}>{q.analysis || '暂无解析'}</div>
+                                {q.provenance && <div className="alert info" style={{ marginTop: 12, fontSize: 12 }}>来源：{q.provenance.source_key} · {q.provenance.license} · 原题 ID {q.provenance.external_id}<br />采集时间：{q.provenance.retrieved_at}{q.provenance.source_url?.startsWith('https://') && <><br /><a href={q.provenance.source_url} target="_blank" rel="noreferrer">查看原始数据与授权 ↗</a></>}</div>}
                                 {(q.kps || []).length > 0 && (
                                   <div style={{ marginTop: 12 }}>
                                     <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>知识点标签</div>
@@ -506,23 +511,26 @@ export default function QuestionBank() {
         </div>
       }>
         <div className="source-search-bar">
-          <div><label>知识主题</label><input className="input" value={sourceKeyword} onChange={e => setSourceKeyword(e.target.value)} placeholder="例如：线性代数矩阵、大学英语四级阅读" onKeyDown={e => e.key === 'Enter' && searchSources()} /></div>
+          <div><label>导入到课程</label><select className="input" value={courseId || courses[0]?.id || 0} onChange={e => setCourseId(Number(e.target.value))}>{courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+          <div><label>知识主题（开放题库可留空）</label><input className="input" value={sourceKeyword} onChange={e => setSourceKeyword(e.target.value)} placeholder="英文原题用英文关键词，如 number、list；留空浏览" onKeyDown={e => e.key === 'Enter' && searchSources()} /></div>
           <button className="btn primary" disabled={sourceSearching} onClick={searchSources}>{sourceSearching ? '正在聚合检索...' : '开始多源检索'}</button>
         </div>
         <div className="source-grid">
           {sources.map(s => <button key={s.key} className={`source-card ${selectedSources.has(s.key) ? 'selected' : ''} ${!s.enabled ? 'disabled' : ''}`} style={{ '--source-color': s.accent }} disabled={!s.enabled} onClick={() => setSelectedSources(prev => { const next = new Set(prev); next.has(s.key) ? next.delete(s.key) : next.add(s.key); return next })}>
-            <i>{s.name.slice(0, 1)}</i><span><b>{s.name}</b><small>{s.category} · {s.desc}</small></span><em>{selectedSources.has(s.key) ? '✓' : '+'}</em>
+            <i>{s.name.slice(0, 1)}</i><span><b>{s.name}</b><small>{s.structured ? `真实结构化数据 · ${s.license}` : '网页资源检索 · 仅供参考'}</small><small>{s.desc}</small></span><em>{selectedSources.has(s.key) ? '✓' : '+'}</em>
           </button>)}
         </div>
-        {sourceSearching && <div className="source-loading"><div className="spin" />正在并行检索、清洗并进行题目质量评分...</div>}
+        {sourceSearching && <div className="source-loading"><div className="spin" />正在请求原始数据并转换为可编辑题目...</div>}
+        {Object.entries(sourceStats).map(([key, s]) => <div className="alert info" key={key} style={{ marginTop: 8 }}><b>{s.name}</b> · {s.count} 题 · {s.status === 'error' ? '请求失败' : s.cached ? '缓存数据' : '实时请求'} · {s.message || '网页资源检索结果'}</div>)}
         {sourceQuestions.length > 0 && <div className="source-results">
           <div className="between flex"><b>候选题目</b><span className="small muted">已自动去重并标注来源，共 {sourceQuestions.length} 道</span></div>
           {sourceQuestions.map((q, i) => <label className="source-question" key={i}>
-            <input type="checkbox" checked={sourceSelected.has(i)} onChange={() => setSourceSelected(prev => { const next = new Set(prev); next.has(i) ? next.delete(i) : next.add(i); return next })} />
-            <div><div className="flex"><Tag color="blue">{TYPE_MAP[q.type] || q.type}</Tag><Tag color="gray">{q.source_db || '外部资源'}</Tag><Tag color={q.quality_score >= 85 ? 'green' : 'orange'}>质量 {q.quality_score || 72}</Tag></div><p>{q.stem}</p><small>{q.answer ? `答案：${q.answer}` : '答案待教师复核'} · 难度 {q.difficulty}</small></div>
+            <input type="checkbox" disabled={q.resource_only} checked={sourceSelected.has(i)} onChange={() => setSourceSelected(prev => { const next = new Set(prev); next.has(i) ? next.delete(i) : next.add(i); return next })} />
+            <div style={{ minWidth: 0, flex: 1 }}><div className="flex"><Tag color="blue">{TYPE_MAP[q.type] || q.type}</Tag><Tag color="gray">{q.source_db || '外部资源'}</Tag><Tag color={q.structured ? 'green' : 'orange'}>{q.structured ? q.license : '资源参考 · 不入库'}</Tag></div><p>{q.stem}</p>{q.options?.map(o => <div key={o.key} className="small">{o.key}. {o.text}</div>)}<pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: 12 }}>答案：{q.answer || '待复核'}</pre>{q.analysis && <details><summary>查看解析 / 测试用例</summary><pre style={{ whiteSpace: 'pre-wrap', fontSize: 12 }}>{q.analysis}</pre></details>}{q.source_url?.startsWith('https://') && <a href={q.source_url} target="_blank" rel="noreferrer">查看原始来源 ↗</a>}<small> · 难度 {q.difficulty}</small></div>
           </label>)}
         </div>}
       </Modal>
     </div>
   )
 }
+

@@ -3,7 +3,9 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from ..database import get_db
-from ..models import User, Question, QuestionKP, QuestionDim, Course, QuestionSource
+from ..models import User, Question, QuestionKP, QuestionDim, Course, QuestionSource, QuestionProvenance
+from datetime import datetime
+import re
 from ..deps import get_current_user, require_roles
 from ..services.document_import_service import import_questions_from_file
 from ..services.web_search_service import web_search_questions
@@ -43,6 +45,7 @@ def list_questions(course_id: int = 0, qtype: str = "", keyword: str = "",
 
 
 def question_to_dict(db: Session, question: Question) -> dict:
+    provenance = db.query(QuestionProvenance).filter_by(question_id=question.id).first()
     kps = [r.kp_id for r in db.query(QuestionKP).filter_by(question_id=question.id).all()]
     dims = [r.dim_id for r in db.query(QuestionDim).filter_by(question_id=question.id).all()]
     return {
@@ -53,6 +56,7 @@ def question_to_dict(db: Session, question: Question) -> dict:
         "source": question.source, "status": question.status,
         "discrimination": question.discrimination, "tags": question.tags or [], "kps": kps, "dims": dims,
         "created_at": question.created_at.isoformat() if question.created_at else None,
+        'provenance': {key: getattr(provenance, key) for key in ('source_key', 'external_id', 'source_url', 'license', 'retrieved_at', 'language')} if provenance else None,
     }
 
 
@@ -102,6 +106,7 @@ def delete_question(qid: int, user: User = Depends(require_roles("admin", "teach
     db.query(QuestionKP).filter_by(question_id=qid).delete()
     db.query(QuestionDim).filter_by(question_id=qid).delete()
     db.delete(q)
+    db.query(QuestionProvenance).filter_by(question_id=qid).delete()
     db.commit()
     return {"ok": True}
 
@@ -132,10 +137,23 @@ def import_confirm(req: ImportConfirmReq, user: User = Depends(require_roles("ad
     """确认导入，批量将预览题目入库"""
     if not req.questions:
         raise HTTPException(400, "没有可导入的题目")
+    if len(req.questions) > 100 or not db.get(Course, req.course_id):
+        raise HTTPException(400, '请选择有效课程，单次最多导入 100 题')
+    normalize = lambda value: re.sub(r'\W+', '', value or '').casefold()
+    known = {normalize(stem) for (stem,) in db.query(Question.stem).filter_by(course_id=req.course_id).all()}
     created = []
+    skipped = 0
     for q in req.questions:
+        if q.get('resource_only'):
+            skipped += 1
+            continue
         if not q.get("stem", "").strip():
             continue
+        fingerprint = normalize(q['stem'])
+        if fingerprint in known:
+            skipped += 1
+            continue
+        known.add(fingerprint)
         new_q = Question(
             course_id=req.course_id,
             type=q.get("type", "subjective"),
@@ -147,22 +165,30 @@ def import_confirm(req: ImportConfirmReq, user: User = Depends(require_roles("ad
             difficulty=q.get("difficulty", 3.0),
             source=q.get("source", "文档导入"),
             tags=q.get("tags", []),
+            scoring_rubric=q.get('scoring_rubric', {}),
             created_by=user.id,
         )
         db.add(new_q)
         db.flush()
         created.append(new_q.id)
+        if q.get('source_key'):
+            db.add(QuestionProvenance(question_id=new_q.id, source_key=q['source_key'],
+                external_id=q.get('external_id', ''), source_url=q.get('source_url', ''),
+                license=q.get('license', ''), retrieved_at=q.get('retrieved_at', ''), language=q.get('language', '')))
+            source = db.query(QuestionSource).filter_by(key=q['source_key']).first()
+            if source:
+                source.last_sync_at = datetime.utcnow()
         # 知识点标签
         for kp in q.get("kps", []) or []:
             db.add(QuestionKP(question_id=new_q.id, kp_id=kp))
     db.commit()
-    return {"ok": True, "created_count": len(created), "ids": created}
+    return {"ok": True, "created_count": len(created), "skipped_count": skipped, "ids": created}
 
 
 # ============ 联网搜索组题 ============
 
 class WebSearchReq(BaseModel):
-    keyword: str
+    keyword: str = ''
     qtype: str = ""
     count: int = 10
     course_name: str = ""
@@ -191,7 +217,8 @@ def list_search_sources(user: User = Depends(get_current_user), db: Session = De
         items.append({"key": key, "name": row.name, "desc": row.description, "category": row.category,
                       "enabled": row.enabled, "status": row.status, "question_count": imported or row.question_count,
                       "last_sync_at": row.last_sync_at.isoformat() if row.last_sync_at else None,
-                      "accent": (row.config or {}).get("accent", cfg.get("accent", "#2563eb"))})
+                      "accent": (row.config or {}).get("accent", cfg.get("accent", "#2563eb")),
+                      'structured': key in ('opentdb', 'gsm8k', 'mbpp'), 'license': cfg.get('license', ''), 'url': cfg.get('site', '')})
     return {"items": items, "total": len(items), "local_total": db.query(Question).count()}
 
 
@@ -210,12 +237,17 @@ def update_search_source(source_key: str, body: dict,
 
 
 @router.post("/search-web")
-def search_web(req: WebSearchReq, user: User = Depends(get_current_user)):
+def search_web(req: WebSearchReq, user: User = Depends(require_roles('admin', 'teacher')), db: Session = Depends(get_db)):
     """联网搜索题目，返回候选列表（不入库）"""
+    selected = req.sources or ['opentdb', 'gsm8k', 'mbpp']
+    from ..services.web_search_service import DATA_SOURCES
+    disabled = {s.key for s in db.query(QuestionSource).filter_by(enabled=False).all()}
+    if any(key not in DATA_SOURCES or key in disabled for key in selected):
+        raise HTTPException(400, '数据源不存在或已停用')
     result = web_search_questions(
         keyword=req.keyword, qtype=req.qtype, count=min(req.count, 20),
         course_name=req.course_name, difficulty=req.difficulty,
-        sources=req.sources or ["general"],
+        sources=selected,
     )
     if not result.get("ok"):
         raise HTTPException(400, result.get("error", "搜索失败"))

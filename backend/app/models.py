@@ -163,6 +163,18 @@ class Question(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class QuestionProvenance(Base):
+    __tablename__ = 'question_provenance'
+    id = Column(Integer, primary_key=True)
+    question_id = Column(Integer, ForeignKey('questions.id'), unique=True, index=True)
+    source_key = Column(String(64), index=True)
+    external_id = Column(String(128))
+    source_url = Column(Text)
+    license = Column(String(64))
+    retrieved_at = Column(String(64))
+    language = Column(String(16))
+
+
 class QuestionKP(Base):
     """题目→知识点 映射（带权重）"""
     __tablename__ = "question_kp"
@@ -592,3 +604,4 @@ class KpiRecord(Base):
     value = Column(Float)
     unit = Column(String(32))
     recorded_at = Column(DateTime, default=datetime.utcnow)
+

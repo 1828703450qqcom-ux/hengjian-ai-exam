@@ -1,0 +1,9 @@
+.source-search-bar{grid-template-columns:180px minmax(180px,1fr) auto}
+.modal:has(.source-search-bar){display:flex;flex-direction:column;overflow:hidden}
+.modal:has(.source-search-bar) .modal-head,.modal:has(.source-search-bar) .modal-foot{flex-shrink:0}
+.modal:has(.source-search-bar) .modal-body{min-height:0;overflow-y:auto}
+.modal:has(.source-search-bar) .source-grid{max-height:190px}
+.modal:has(.source-search-bar) .source-results{max-height:none;overflow:visible}
+.source-question pre{max-width:100%;overflow-wrap:anywhere}
+@media(max-width:760px){.source-search-bar{grid-template-columns:1fr}.source-grid{grid-template-columns:1fr}}
+
