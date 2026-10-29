@@ -1,0 +1,9 @@
+.grading-answer{padding:16px;border:1px solid #d7e6ff;border-radius:12px;background:linear-gradient(145deg,#ffffff,#f6faff);box-shadow:0 6px 20px #2b70c60a}
+.grading-answer p{margin:10px 0;color:#304360;line-height:1.65;font-size:13px;overflow-wrap:anywhere}
+.grading-answer p b{color:#183a6b}
+.grading-ai-note{padding:9px 11px;margin:12px 0;border-radius:8px;background:#e8f2ff;color:#1d5ca7;font-size:12px;line-height:1.6}
+.grading-controls{display:grid;grid-template-columns:115px minmax(0,1fr);gap:10px;margin:12px 0}
+.grading-controls label{display:grid;gap:5px;color:#4e668a;font-size:12px}
+.grading-controls .input{width:100%;box-sizing:border-box}
+@media(max-width:780px){.grading-controls{grid-template-columns:1fr}}
+

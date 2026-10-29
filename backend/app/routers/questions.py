@@ -50,7 +50,8 @@ def question_to_dict(db: Session, question: Question) -> dict:
         "subject": question.subject, "stem": question.stem, "options": question.options or [],
         "answer": question.answer, "analysis": question.analysis,
         "scoring_rubric": question.scoring_rubric or {}, "difficulty": question.difficulty,
-        "source": question.source, "tags": question.tags or [], "kps": kps, "dims": dims,
+        "source": question.source, "status": question.status,
+        "discrimination": question.discrimination, "tags": question.tags or [], "kps": kps, "dims": dims,
         "created_at": question.created_at.isoformat() if question.created_at else None,
     }
 
@@ -272,3 +273,4 @@ def check_duplicate(req: DuplicateCheckReq, user: User = Depends(get_current_use
 
     duplicates.sort(key=lambda x: x["similarity"], reverse=True)
     return {"duplicates": duplicates[:20], "total": len(duplicates), "threshold": req.threshold}
+

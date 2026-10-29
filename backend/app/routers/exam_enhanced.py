@@ -2,6 +2,7 @@
 覆盖：考试模板、延时考试、恢复考试、双评与仲裁、阅卷质量监控、归档中心
 """
 from datetime import datetime, timedelta
+from math import isfinite
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
@@ -248,9 +249,17 @@ def submit_double_grade(
     current_user: User = Depends(get_current_user),
 ):
     """提交双评评分（每位教师独立评分）"""
+    if current_user.role not in ("admin", "teacher"):
+        raise HTTPException(403, "仅教师可提交双评")
     answer = db.query(StudentAnswer).filter(StudentAnswer.id == req.answer_id).first()
     if not answer:
         raise HTTPException(404, "答题记录不存在")
+    session = db.query(ExamSession).filter(ExamSession.id == answer.session_id).first()
+    paper_question = db.query(PaperQuestion).filter_by(
+        paper_id=session.exam.paper_id, question_id=answer.question_id).first() if session else None
+    maximum = paper_question.score if paper_question else 5.0
+    if not isfinite(req.score) or not 0 <= req.score <= maximum:
+        raise HTTPException(400, f"评分须在 0 至 {maximum} 之间")
 
     # 检查该教师是否已经评阅过
     existing = db.query(GradingRecord).filter(
@@ -356,11 +365,20 @@ def submit_arbitration(
     current_user: User = Depends(get_current_user),
 ):
     """提交仲裁结果（仲裁教师评分为最终成绩）"""
+    if current_user.role not in ("admin", "teacher"):
+        raise HTTPException(403, "仅教师可处理仲裁")
     arbitration = db.query(GradeArbitration).filter(GradeArbitration.id == req.arbitration_id).first()
     if not arbitration:
         raise HTTPException(404, "仲裁记录不存在")
     if arbitration.status == "resolved":
         raise HTTPException(400, "该仲裁已处理")
+    answer = db.query(StudentAnswer).filter(StudentAnswer.id == arbitration.answer_id).first()
+    session = db.query(ExamSession).filter(ExamSession.id == arbitration.session_id).first()
+    paper_question = db.query(PaperQuestion).filter_by(
+        paper_id=session.exam.paper_id, question_id=arbitration.question_id).first() if session else None
+    maximum = paper_question.score if paper_question else 5.0
+    if not isfinite(req.final_score) or not 0 <= req.final_score <= maximum:
+        raise HTTPException(400, f"仲裁分须在 0 至 {maximum} 之间")
 
     arbitration.arbitrator_id = current_user.id
     arbitration.final_score = req.final_score
@@ -369,7 +387,6 @@ def submit_arbitration(
     arbitration.resolved_at = datetime.utcnow()
 
     # 更新答题记录最终成绩
-    answer = db.query(StudentAnswer).filter(StudentAnswer.id == arbitration.answer_id).first()
     if answer:
         answer.final_score = req.final_score
         answer.teacher_score = req.final_score
@@ -404,6 +421,8 @@ def list_arbitrations(
     current_user: User = Depends(get_current_user),
 ):
     """获取仲裁列表"""
+    if current_user.role not in ("admin", "teacher"):
+        raise HTTPException(403, "仅教师可查看仲裁")
     q = db.query(GradeArbitration)
     if exam_id:
         sessions = db.query(ExamSession.id).filter(ExamSession.exam_id == exam_id).all()
@@ -746,3 +765,4 @@ def archive_student_search(
         })
 
     return {"students": result, "total": len(result)}
+

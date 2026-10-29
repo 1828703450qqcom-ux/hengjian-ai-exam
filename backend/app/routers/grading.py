@@ -1,6 +1,7 @@
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from math import isfinite
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import (
@@ -15,7 +16,7 @@ router = APIRouter(prefix="/api/grading", tags=["grading"])
 
 
 @router.post("/session/{sid}/auto")
-def auto_grade(sid: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def auto_grade(sid: int, user: User = Depends(require_roles("admin", "teacher")), db: Session = Depends(get_db)):
     """自动评阅流水线：客观题精确比对 + 主观题 AI 评分 + 能力画像"""
     session = db.query(ExamSession).get(sid)
     if not session:
@@ -29,7 +30,7 @@ def auto_grade(sid: int, user: User = Depends(get_current_user), db: Session = D
 
 
 @router.get("/session/{sid}/detail")
-def session_detail(sid: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def session_detail(sid: int, user: User = Depends(require_roles("admin", "teacher")), db: Session = Depends(get_db)):
     session = db.query(ExamSession).get(sid)
     if not session:
         raise HTTPException(404, "会话不存在")
@@ -39,8 +40,9 @@ def session_detail(sid: int, user: User = Depends(get_current_user), db: Session
         q = db.query(Question).get(sa.question_id)
         pq = db.query(PaperQuestion).filter_by(paper_id=session.exam.paper_id, question_id=sa.question_id).first()
         items.append({
-            "question_id": q.id, "type": q.type, "stem": q.stem, "options": q.options or [],
+            "answer_id": sa.id, "question_id": q.id, "type": q.type, "stem": q.stem, "options": q.options or [],
             "answer": q.answer, "score": pq.score if pq else 5.0,
+            "scoring_rubric": q.scoring_rubric or {}, "analysis": q.analysis or "",
             "student_answer": sa.answer, "ai_score": sa.ai_score, "ai_feedback": sa.ai_feedback,
             "teacher_score": sa.teacher_score, "teacher_feedback": sa.teacher_feedback,
             "final_score": sa.final_score, "grading_status": sa.grading_status,
@@ -54,8 +56,8 @@ def session_detail(sid: int, user: User = Depends(get_current_user), db: Session
 
 
 class TeacherGradeReq(BaseModel):
-    teacher_scores: dict      # {question_id: score}
-    teacher_feedback: dict = {}
+    teacher_scores: dict[str, float] = Field(default_factory=dict)
+    teacher_feedback: dict[str, str] = Field(default_factory=dict)
 
 
 @router.post("/session/{sid}/teacher")
@@ -66,6 +68,17 @@ def teacher_grade(sid: int, req: TeacherGradeReq, user: User = Depends(require_r
     if not session:
         raise HTTPException(404, "会话不存在")
     answers = db.query(StudentAnswer).filter_by(session_id=sid).all()
+    if not answers:
+        raise HTTPException(400, "没有可评阅的作答")
+    limits = {str(sa.question_id): (db.query(PaperQuestion).filter_by(
+        paper_id=session.exam.paper_id, question_id=sa.question_id).first()) for sa in answers}
+    valid_ids = set(limits)
+    if not req.teacher_scores or not set(req.teacher_scores).issubset(valid_ids):
+        raise HTTPException(400, "请选择有效题目并填写教师评分")
+    for qid, score in req.teacher_scores.items():
+        maximum = limits[qid].score if limits[qid] else 5.0
+        if not isfinite(score) or score < 0 or score > maximum:
+            raise HTTPException(400, f"题目 {qid} 分数须在 0 至 {maximum} 之间")
     ai_scores, teacher_scores = [], []
     total = 0.0
     for sa in answers:
@@ -75,8 +88,9 @@ def teacher_grade(sid: int, req: TeacherGradeReq, user: User = Depends(require_r
             sa.teacher_feedback = req.teacher_feedback.get(str(sa.question_id), "")
             sa.final_score = t
             sa.grading_status = "teacher_graded"
-            ai_scores.append(sa.ai_score or 0)
-            teacher_scores.append(t)
+            maximum = limits[str(sa.question_id)].score if limits[str(sa.question_id)] else 5.0
+            ai_scores.append((sa.ai_score or 0) / maximum * 100 if maximum else 0)
+            teacher_scores.append(t / maximum * 100 if maximum else 0)
         total += sa.final_score or 0
     session.teacher_score = round(total, 1)
     session.final_score = round(total, 1)
@@ -199,3 +213,4 @@ def export_report(exam_id: int, format: str = "json", user: User = Depends(get_c
                             q["correct_count"], q["total_count"], q["knowledge_point"]])
         return {"format": "csv", "content": output.getvalue(), "filename": f"exam_{exam_id}_report.csv"}
     return report
+
